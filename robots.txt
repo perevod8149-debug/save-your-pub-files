@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://saveyourpubfiles.com/sitemap.xml

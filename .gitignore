@@ -1,0 +1,60 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+
+# Dependencies and tool state
+node_modules/
+.wrangler/
+.cache/
+.parcel-cache/
+dist/
+coverage/
+
+# Logs and local browser/test artifacts
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+Crashpad/
+*.dmp
+qa/
+work-check/
+
+# Deploy artifacts and generated bundles
+deploy-static/
+*.zip
+*.7z
+*.rar
+*.tar
+*.tgz
+
+# Local backups and throwaway test records
+*.bak
+*.backup
+*.tmp
+index.before-*.html
+delivery-worker/**/src/*.before-*.js
+delivery-worker/**/download-test.json
+
+# Paid/downloadable payloads should not be published with source by accident
+*.exe
+*.msi
+*.msix
+*.appx
+
+# OS/editor junk
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

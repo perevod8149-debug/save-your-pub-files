@@ -1,0 +1,5 @@
+Placeholder for future Open Graph image.
+
+Create a real 1200x630 social image before launch. The current HTML references
+/assets/og-placeholder.png as a placeholder path only; do not ship without
+adding the actual image or removing the og:image tag.
