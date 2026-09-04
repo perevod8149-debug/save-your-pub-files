@@ -259,6 +259,10 @@
           <span class="price-note">one-time</span>
           <a class="button primary full" href="#pricing" data-paddle-checkout="pending">Get Save Your PUB Files - $10.99</a>
           <p class="checkout-note">Secure checkout powered by Paddle.</p>
+          <div data-download-recovery hidden>
+            <p class="checkout-note" role="status" aria-live="polite" data-download-status></p>
+            <button class="button secondary full" type="button" data-retry-download hidden>Retry download</button>
+          </div>
         </div>
       </div>
     </section>
@@ -350,12 +354,25 @@
   </footer>
 <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
 <script>
-      Paddle.Environment.set("sandbox");
-
     const DELIVERY_WORKER =
       "https://saveyourpubfiles-delivery.perevod8149.workers.dev";
 
+    const PENDING_DOWNLOAD_STORAGE_KEY =
+      "saveYourPubFilesPendingTransaction";
+    const CLAIM_RETRY_DELAYS_MS = [
+      1000,
+      2000,
+      2000,
+      2000,
+      2000,
+      2000,
+      2000,
+      2000,
+      2000
+    ];
+
     let claimingDownload = false;
+    let pendingRecoveryTransactionId = null;
 
     function wait(ms) {
       return new Promise(function (resolve) {
@@ -363,57 +380,156 @@
       });
     }
 
-    async function claimDownload(transactionId) {
-      if (claimingDownload) return;
-      claimingDownload = true;
+    function rememberPendingTransaction(transactionId) {
+      pendingRecoveryTransactionId = transactionId;
 
       try {
-        for (let attempt = 0; attempt < 15; attempt++) {
-          const response = await fetch(
-            DELIVERY_WORKER +
-              "/claim-download?transaction=" +
-              encodeURIComponent(transactionId),
-            {
-              method: "GET",
-              cache: "no-store"
-            }
-          );
+        window.sessionStorage.setItem(
+          PENDING_DOWNLOAD_STORAGE_KEY,
+          transactionId
+        );
+      } catch {
+        // Recovery still works during this page view if storage is blocked.
+      }
+    }
 
-          if (response.status === 202) {
-            await wait(1000);
-            continue;
-          }
+    function getRememberedTransaction() {
+      if (pendingRecoveryTransactionId) {
+        return pendingRecoveryTransactionId;
+      }
 
-          if (!response.ok) {
-            throw new Error(
-              "Download claim failed with status " + response.status
+      try {
+        return window.sessionStorage.getItem(
+          PENDING_DOWNLOAD_STORAGE_KEY
+        );
+      } catch {
+        return null;
+      }
+    }
+
+    function clearRememberedTransaction() {
+      pendingRecoveryTransactionId = null;
+
+      try {
+        window.sessionStorage.removeItem(
+          PENDING_DOWNLOAD_STORAGE_KEY
+        );
+      } catch {
+        // Nothing else to clear if storage is unavailable.
+      }
+    }
+
+    function setDownloadRecoveryState(message, showRetry) {
+      const recovery = document.querySelector(
+        "[data-download-recovery]"
+      );
+      const status = document.querySelector("[data-download-status]");
+      const retryButton = document.querySelector(
+        "[data-retry-download]"
+      );
+
+      if (!recovery || !status || !retryButton) {
+        return;
+      }
+
+      recovery.hidden = false;
+      status.textContent = message;
+      retryButton.hidden = !showRetry;
+      retryButton.disabled = claimingDownload;
+    }
+
+    async function claimDownload(transactionId) {
+      if (claimingDownload) return false;
+      if (!/^txn_[A-Za-z0-9]+$/.test(transactionId || "")) {
+        setDownloadRecoveryState(
+          "We could not verify that transaction ID. Please check it and try again.",
+          true
+        );
+        return false;
+      }
+
+      claimingDownload = true;
+      rememberPendingTransaction(transactionId);
+      setDownloadRecoveryState(
+        "Payment received. Preparing your download...",
+        false
+      );
+
+      try {
+        let lastError = null;
+
+        for (
+          let attempt = 0;
+          attempt <= CLAIM_RETRY_DELAYS_MS.length;
+          attempt++
+        ) {
+          try {
+            const response = await fetch(
+              DELIVERY_WORKER +
+                "/claim-download?transaction=" +
+                encodeURIComponent(transactionId),
+              {
+                method: "GET",
+                cache: "no-store"
+              }
             );
+
+            if (!response.ok && response.status !== 202) {
+              throw new Error(
+                "Download claim failed with status " + response.status
+              );
+            }
+
+            const result = await response.json();
+
+            if (result.ready && result.downloadUrl) {
+              clearRememberedTransaction();
+              setDownloadRecoveryState(
+                "Download ready. Starting your download...",
+                false
+              );
+
+              if (window.Paddle && Paddle.Checkout) {
+                Paddle.Checkout.close();
+              }
+
+              window.location.href = result.downloadUrl;
+              return true;
+            }
+          } catch (error) {
+            lastError = error;
+            console.error("Download claim attempt failed:", error);
           }
 
-          const result = await response.json();
-
-          if (result.ready && result.downloadUrl) {
-            Paddle.Checkout.close();
-            window.location.href = result.downloadUrl;
-            return;
+          if (attempt < CLAIM_RETRY_DELAYS_MS.length) {
+            await wait(CLAIM_RETRY_DELAYS_MS[attempt]);
           }
-
-          await wait(1000);
         }
 
-        alert(
-          "Payment was completed, but the download is not ready yet. " +
-          "Please wait a moment and try again."
+        if (lastError) {
+          console.error("Download recovery still pending:", lastError);
+        }
+
+        setDownloadRecoveryState(
+          "Payment received. Your download is still being prepared.",
+          true
         );
+        return false;
       } catch (error) {
         console.error("Download claim failed:", error);
 
-        alert(
-          "Your payment was completed, but the download could not be prepared. " +
-          "Please contact support."
+        setDownloadRecoveryState(
+          "Payment received. Your download is still being prepared.",
+          true
         );
+        return false;
       } finally {
         claimingDownload = false;
+
+        const retryButton = document.querySelector(
+          "[data-retry-download]"
+        );
+        if (retryButton) retryButton.disabled = false;
       }
     }
 
@@ -424,7 +540,7 @@
     }
 
     Paddle.Initialize({
-      token: "test_7c0715d5eb83f2726c7bde96376",
+      token: "live_f3c5bda2eef263780bba384d3c2",
 
       eventCallback: function (event) {
         if (event.name !== "checkout.completed") {
@@ -448,6 +564,32 @@
       }
     });
 
+    const retryDownloadButton = document.querySelector(
+      "[data-retry-download]"
+    );
+
+    if (retryDownloadButton) {
+      retryDownloadButton.addEventListener("click", function () {
+        const transactionId = getRememberedTransaction();
+
+        if (!transactionId) {
+          setDownloadRecoveryState(
+            "No completed payment is waiting for download recovery.",
+            false
+          );
+          return;
+        }
+
+        claimDownload(transactionId);
+      });
+    }
+
+    const rememberedTransaction = getRememberedTransaction();
+
+    if (rememberedTransaction) {
+      claimDownload(rememberedTransaction);
+    }
+
     document
       .querySelectorAll('[data-paddle-checkout="pending"]')
       .forEach(function (button) {
@@ -459,7 +601,7 @@
           Paddle.Checkout.open({
             items: [
               {
-                priceId: "pri_01kzpvxxkptgamwp74h1g2wbqv",
+                priceId: "pri_01kzykvts8j9hz4bssgrfw6k0r",
                 quantity: 1
               }
             ]
