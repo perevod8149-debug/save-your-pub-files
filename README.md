@@ -1,38 +1,59 @@
 # Save Your PUB Files
 
-Save Your PUB Files is a Windows desktop utility for batch converting Microsoft Publisher `.pub` files to PDF.
+Save Your PUB Files is a Windows utility for batch converting Microsoft Publisher `.pub` files to PDF.
 
-The product is designed for people who need to preserve Publisher document archives before Microsoft Publisher becomes harder to rely on. It processes files locally on the user's Windows PC and requires a working, licensed installation of Microsoft Publisher.
+It is built for people who have multiple Publisher files, full folders, or large archives with dozens or hundreds of `.pub` files. Instead of opening each Publisher file and saving it as a PDF one by one, Save Your PUB Files helps convert many files in one local Windows workflow.
+
+## Key Features
+
+- Batch convert Microsoft Publisher `.pub` files to PDF.
+- Process multiple files or entire folders.
+- Useful for dozens or hundreds of Publisher documents.
+- Runs locally on the user's Windows PC.
+- No Publisher files are uploaded to a server.
+- Simple Windows desktop GUI.
+- One-time purchase with no subscription.
+
+## Requirements
+
+- Windows PC.
+- Microsoft Publisher must be installed.
+- Conversion relies on the installed Microsoft Publisher application.
+
+## Publisher End of Support
+
+Microsoft Publisher support ends on October 1, 2026.
+
+Save Your PUB Files helps people preserve existing Publisher archives as PDF before or around Publisher's retirement. It does not claim that `.pub` files will stop opening on that date; it is a practical tool for reducing risk while Publisher is still available.
 
 ## Website
 
-The static website describes the product, requirements, pricing, support, and legal policies for Paddle review and customer discovery.
+Main website:
 
-Key website pieces:
+https://saveyourpubfiles.com/
 
-- English homepage and SEO pages
-- Localized landing pages
-- Terms of Use, Privacy Policy, Refund Policy, and Support pages
-- Shared CSS, JavaScript, icons, screenshots, and demo media
+Products page:
 
-## Delivery Worker
+https://saveyourpubfiles.com/products/
 
-The Cloudflare Worker in `delivery-worker/saveyourpubfiles-delivery` handles purchase-related delivery flow:
+## Privacy / Local Processing
 
-- Paddle webhook verification
-- Completed transaction handling
-- Download-token creation
-- R2 installer download delivery
-- KV purchase/download records
+Publisher-to-PDF conversion happens locally on the user's Windows PC.
 
-Runtime secrets are expected to be configured outside the repository through Cloudflare. Do not commit Paddle API keys, webhook secrets, Cloudflare tokens, `.env`, or `.dev.vars` files.
+The user's `.pub` files are not uploaded to Save Your PUB Files servers for conversion.
 
-## Paddle Status
+## Purchase
 
-The frontend currently uses Paddle sandbox checkout values. Production payment values should be added only through a deliberate production switch after domain approval and a final preflight.
+Save Your PUB Files is sold as a one-time purchase:
 
-## Development Notes
+- Price: `$10.99`
+- Subscription: none
 
-This repository is intended to contain source files needed to maintain the website and Worker, not deploy ZIPs, local browser profiles, generated install payloads, or secrets.
+## Repository Notes for Maintainers
 
-The paid installer/download payload should be stored in the configured delivery bucket, not committed to the public source repository.
+This repository contains source files for the public website and the delivery Worker.
+
+- Website source lives in the static site files.
+- The delivery Worker lives in `delivery-worker/saveyourpubfiles-delivery`.
+- Do not commit secrets, API keys, Paddle credentials, webhook secrets, Cloudflare tokens, download tokens, customer data, `.env`, or `.dev.vars` files.
+- The paid installer and download payload should not be stored in this public repository.
